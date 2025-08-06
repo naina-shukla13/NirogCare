@@ -3,14 +3,13 @@ import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
- 
-  apiKey: "AIzaSyADIztoMONq61iGP-5DVONiyET6CIKCTRQ",
-  authDomain: "nirogcare-c268e.firebaseapp.com",
-  projectId: "nirogcare-c268e",
-  storageBucket: "nirogcare-c268e.firebasestorage.app",
-  messagingSenderId: "873269251525",
-  appId: "1:873269251525:web:c8d0656836905cb7100fac",
-  measurementId: "G-WHMM37380J"
+ apiKey: process.env.FIREBASE_API_KEY,
+ authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+ projectId: process.env.FIREBASE_PROJECT_ID,
+ storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+ messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+ appId: process.env.FIREBASE_APP_ID,
+ measurementId: process.env.FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
