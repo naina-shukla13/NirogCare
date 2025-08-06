@@ -1,4 +1,3 @@
-// app/api/symptom-check/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -6,78 +5,68 @@ export async function POST(req: NextRequest) {
     const { symptom } = await req.json();
 
     if (!symptom || typeof symptom !== "string") {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid symptom input" }, { status: 400 });
     }
 
- const prompt = `You are a helpful medical assistant. 
-A patient reports: "${symptom}".
-Respond ONLY in JSON like this:
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
+    const prompt = `A patient is experiencing the following symptom: "${symptom}".
+Please provide:
+1. A likely medical diagnosis,
+2. A simple home remedy (if safe),
+3. Precautionary advice.
+
+Respond strictly in JSON format like:
 {
-  "diagnosis": "text",
-  "remedy": "text",
-  "precautions": "text"
+  "diagnosis": "...",
+  "remedy": "...",
+  "precautions": "..."
 }`;
 
-
-    const HF_API_TOKEN = process.env.HUGGINGFACE_API_TOKEN;
-    const MODEL_ID = "HuggingFaceH4/zephyr-7b-beta"; // friendlier for text-generation
-
-
-    const response = await fetch(`https://api-inference.huggingface.co/models/${MODEL_ID}`, {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${HF_API_TOKEN}`,
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://nirogcare.vercel.app", // optional: your live site
+        "X-Title": "NirogCare AI Diagnosis"
       },
       body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 200 },
-      }),
+        model: "openai/gpt-3.5-turbo", // or try "openai/gpt-3.5-turbo" or "anthropic/claude-3-haiku"
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7
+      })
     });
 
     const result = await response.json();
 
-    const message = result?.[0]?.generated_text;
+    const message = result.choices?.[0]?.message?.content;
 
-    if (!message || typeof message !== "string") {
-      return NextResponse.json(
-        { error: "Model returned no valid output" },
-        { status: 502 }
-      );
+    if (!message) {
+      return NextResponse.json({ error: "No message returned from OpenRouter" }, { status: 502 });
     }
 
+    // Try to extract JSON from the response
     const jsonStart = message.indexOf("{");
     const jsonEnd = message.lastIndexOf("}") + 1;
+    const jsonString = message.slice(jsonStart, jsonEnd);
 
-    if (jsonStart === -1 || jsonEnd === -1) {
-      console.error("Model output is not in expected JSON format:", message);
-      return NextResponse.json(
-        { error: "Invalid JSON structure in model output" },
-        { status: 502 }
-      );
-    }
-
-    const jsonString = message.slice(jsonStart, jsonEnd).trim();
-
-    let parsed;
     try {
-      parsed = JSON.parse(jsonString);
+      const parsed = JSON.parse(jsonString);
+      return NextResponse.json(parsed);
     } catch {
-      console.error("JSON.parse failed. Message:", message);
       return NextResponse.json(
-        { error: "Failed to parse model response as JSON",
-            rawOutput: message,
-         },
+        { error: "AI responded with invalid JSON", raw: message },
         { status: 502 }
       );
     }
-
-    return NextResponse.json(parsed);
-  } catch (error) {
-    console.error("Error in /api/symptom-check:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  } catch (err) {
+    console.error("Error in /api/symptom-check:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

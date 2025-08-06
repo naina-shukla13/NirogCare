@@ -13,14 +13,14 @@ export async function GET(req: Request) {
   // If location & specialization provided, run geo-filtered query
   if (!isNaN(lat) && !isNaN(lng) && specialization) {
     const clinics = await Clinic.find({
-      specialization: { $regex: new RegExp(specialization, "i") },
-      location: {
-        $near: {
-          $geometry: { type: "Point", coordinates: [lng, lat] },
-          $maxDistance: 10000, // 10 km radius
-        },
-      },
-    });
+  location: {
+    $near: {
+      $geometry: { type: "Point", coordinates: [lng, lat] },
+      $maxDistance: 50000,
+    },
+  },
+}).limit(5);
+
 
     return NextResponse.json(clinics);
   }
